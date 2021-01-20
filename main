@@ -1,0 +1,435 @@
+import sys
+
+import pygame
+
+pygame.init()
+clock = pygame.time.Clock()
+game_font = pygame.font.Font('freesansbold.ttf', 50)
+text_font = pygame.font.Font('freesansbold.ttf', 20)
+
+# variables
+player_x = 400
+player_y = 600
+player_x_change = 0
+player_y_change = 0
+enemy_x_speed = 3
+enemy_y_speed = 2
+can_open = False
+game_active = True
+key_get = False
+screen_width = 800
+screen_height = 800
+spike_list = []
+wall_list = []
+door_x = 400
+door_y = 50
+game_state = 0
+reset_pos = True
+current_time = 0
+play_song = True
+
+# screen
+screen = pygame.display.set_mode((screen_width, screen_height))
+screen.fill((210, 210, 210))
+
+# surfaces
+player_surface = pygame.image.load('temp_player.png')
+player_rect = player_surface.get_rect(center=(player_x, player_y))
+key_surface = pygame.image.load('temp_lock.png')
+key_rect = key_surface.get_rect(center=(400, 400))
+door_surface = pygame.image.load('temp_door.png')
+door_rect = door_surface.get_rect(center=(400, 50))
+spike_surface = pygame.image.load('temp_spike.png')
+spike_rect = spike_surface.get_rect(center=(100, 500))
+
+# sound
+# Sound from Zapsplat.com
+door_sound = pygame.mixer.Sound('door.mp3')
+spike_hit = pygame.mixer.Sound('spike_hit.mp3')
+
+
+# displays current level
+def display_level():
+    level_surface = game_font.render(f'Level: {game_state}', False, (0, 0, 0))
+    level_rect = level_surface.get_rect(center=(144, 50))
+    screen.blit(level_surface, level_rect)
+
+
+# checks for player collision
+def player_collision():
+    global door_surface, door_rect, game_state
+    global can_open, game_active, key_get, player_x_change, player_y_change
+    if player_rect.colliderect(key_rect) and not key_get:
+        door_sound.play()
+        can_open = True
+        key_get = True
+        door_surface = pygame.image.load('temp_door_open.png')
+        door_rect = door_surface.get_rect(center=(door_x, door_y))
+        return door_surface
+    if player_rect.colliderect(door_rect) and can_open:
+        game_state += 1
+        # level += 1
+        print(game_state)
+        player_rect.center = (400, 600)
+        key_get = False
+        can_open = False
+        door_surface = pygame.image.load('temp_door.png')
+        door_rect = door_surface.get_rect(center=(door_x, door_y))
+        for wall in wall_list:
+            wall_list.remove(wall)
+    if player_rect.colliderect(spike_rect):
+        wall_list.clear()
+        game_active = False
+        spike_hit.play()
+
+
+# moves spike
+def moving_object(item):
+    global enemy_x_speed, enemy_y_speed
+    item.x += enemy_x_speed
+    item.y += enemy_y_speed
+
+    if item.right >= screen_width or item.left <= 0:
+        enemy_x_speed *= -1
+    if item.bottom >= screen_height or item.top <= 0:
+        enemy_y_speed *= -1
+
+
+# prevents player from going off screen
+def player_border():
+    if player_rect.centerx <= 25:
+        player_rect.centerx = 25
+    elif player_rect.centerx >= 775:
+        player_rect.centerx = 775
+    if player_rect.centery <= 25:
+        player_rect.centery = 25
+    elif player_rect.centery >= 775:
+        player_rect.centery = 775
+
+
+# creates walls
+def create_wall(x, y, width, height):
+    wall = pygame.Rect(x, y, width, height)
+    pygame.draw.rect(screen, (0, 0, 0), wall)
+    wall_list.append(wall)
+
+
+def loop_song():
+    global play_song
+    pygame.mixer.music.load('song.mp3')
+    pygame.mixer.music.play(-1)
+    play_song = False
+
+
+# wall collision with player and spike
+def wall_collision():
+    global enemy_x_speed, enemy_y_speed
+    collision_tolerance = 5
+    # spike wall collision
+    for wall in wall_list:
+        if spike_rect.colliderect(wall):
+            if abs(spike_rect.top - wall.bottom) < collision_tolerance and enemy_y_speed < 0:
+                enemy_y_speed *= -1
+            if abs(spike_rect.bottom - wall.top) < collision_tolerance and enemy_y_speed > 0:
+                enemy_y_speed *= -1
+            if abs(spike_rect.right - wall.left) < collision_tolerance and enemy_x_speed > 0:
+                enemy_x_speed *= -1
+            if abs(spike_rect.left - wall.right) < collision_tolerance and enemy_x_speed < 0:
+                enemy_x_speed *= -1
+        # player wall collision
+        if player_rect.colliderect(wall):
+            if abs(player_rect.top - wall.bottom) < collision_tolerance:
+                player_rect.top = wall.bottom
+            if abs(player_rect.bottom - wall.top) < collision_tolerance:
+                player_rect.bottom = wall.top
+            if abs(player_rect.right - wall.left) < collision_tolerance:
+                player_rect.right = wall.left
+            if abs(player_rect.left - wall.right) < collision_tolerance:
+                player_rect.left = wall.right
+
+
+# player movement
+def player_movement():
+    global player_y_change, player_x_change, game_state
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_LEFT:
+                player_x_change += -2
+            if event.key == pygame.K_RIGHT:
+                player_x_change += 2
+            if event.key == pygame.K_UP:
+                player_y_change += -2
+            if event.key == pygame.K_DOWN:
+                player_y_change += 2
+            # menu
+            if event.key == pygame.K_SPACE and game_state == 0:
+                game_state += 1
+            if event.key == pygame.K_9:
+                game_state = 10
+        if event.type == pygame.KEYUP:
+            if event.key == pygame.K_LEFT:
+                player_x_change += 2
+            if event.key == pygame.K_RIGHT:
+                player_x_change += -2
+            if event.key == pygame.K_UP:
+                player_y_change += 2
+            if event.key == pygame.K_DOWN:
+                player_y_change += -2
+
+
+def menu():
+    global game_state
+    button1 = pygame.image.load('empty_text.png')
+    button1_rect = button1.get_rect(center=(400, 100))
+    start_surface = game_font.render('press space to start', False, (255, 255, 255))
+    start_rect = start_surface.get_rect(center=(400, 100))
+    credit = text_font.render('Audio from Zapsplat.com', False, (0, 0, 0))
+    credits_rect = credit.get_rect(center=(200, 750))
+    credit2 = text_font.render('Made by Jace Young', False, (0, 0, 0))
+    credit2_rect = credit2.get_rect(center=(600, 750))
+    source_surface = text_font.render('Source code: ', False, (0, 0, 0))
+    source_rect = source_surface.get_rect(center=(400, 500))
+    source_surface2 = text_font.render('www.shghregehvuirevh', False, (0, 0, 0))
+    source_rect2 = source_surface2.get_rect(center=(400, 575))
+    screen.blit(credit, credits_rect)
+    screen.blit(credit2, credit2_rect)
+    screen.blit(source_surface, source_rect)
+    screen.blit(source_surface2, source_rect2)
+    screen.blit(button1, button1_rect)
+    screen.blit(start_surface, start_rect)
+
+while True:
+    screen.fill((210, 210, 210))
+    player_movement()
+
+    if game_state == 0:
+        menu()
+
+    elif game_state == 1 and game_active:
+        player_rect.centerx += player_x_change
+        player_rect.centery += player_y_change
+        player_border()
+        player_collision()
+        screen.blit(player_surface, player_rect)
+        if not key_get:
+            screen.blit(key_surface, key_rect)
+        screen.blit(door_surface, door_rect)
+        screen.blit(spike_surface, spike_rect)
+        moving_object(spike_rect)
+        screen.blit(spike_surface, spike_rect)
+        # wall_collision()
+        # create_wall(300, 50, 25, 500)
+        display_level()
+
+    elif game_state == 2 and game_active:
+        key_rect = key_surface.get_rect(center=(100, 200))
+        player_rect.centerx += player_x_change
+        player_rect.centery += player_y_change
+        player_border()
+        player_collision()
+        screen.blit(player_surface, player_rect)
+        if not key_get:
+            screen.blit(key_surface, key_rect)
+        screen.blit(door_surface, door_rect)
+        moving_object(spike_rect)
+        screen.blit(spike_surface, spike_rect)
+        create_wall(200, 100, 25, 500)
+        create_wall(0, 100, 200, 25)
+        wall_collision()
+        display_level()
+
+    elif game_state == 3 and game_active:
+        wall_list.clear()
+        create_wall(600, 100, 25, 500)
+        create_wall(600, 600, 200, 25)
+        key_rect = key_surface.get_rect(center=(700, 500))
+        player_rect.centerx += player_x_change
+        player_rect.centery += player_y_change
+        player_border()
+        player_collision()
+        screen.blit(player_surface, player_rect)
+        if not key_get:
+            screen.blit(key_surface, key_rect)
+        screen.blit(door_surface, door_rect)
+        moving_object(spike_rect)
+        screen.blit(spike_surface, spike_rect)
+        wall_collision()
+        display_level()
+
+    elif game_state == 4 and game_active:
+        wall_list.clear()
+        create_wall(100, 100, 600, 25)
+        create_wall(100, 100, 25, 300)
+        create_wall(700, 100, 25, 300)
+        key_rect = key_surface.get_rect(center=(400, 200))
+        player_rect.centerx += player_x_change
+        player_rect.centery += player_y_change
+        player_border()
+        player_collision()
+        screen.blit(player_surface, player_rect)
+        if not key_get:
+            screen.blit(key_surface, key_rect)
+        screen.blit(door_surface, door_rect)
+        moving_object(spike_rect)
+        screen.blit(spike_surface, spike_rect)
+        wall_collision()
+        display_level()
+
+    elif game_state == 5 and game_active:
+        wall_list.clear()
+        # create_wall(600, 100, 25, 50)
+        create_wall(375, 650, 50, 175)
+        create_wall(400, 625, 200, 25)
+        create_wall(575, 375, 25, 250)
+        create_wall(200, 625, 200, 25)
+        create_wall(200, 375, 25, 250)
+        create_wall(250, 100, 300, 25)
+        key_rect = key_surface.get_rect(center=(275, 750))
+        player_rect.centerx += player_x_change
+        player_rect.centery += player_y_change
+        player_border()
+        player_collision()
+        screen.blit(player_surface, player_rect)
+        if not key_get:
+            screen.blit(key_surface, key_rect)
+        screen.blit(door_surface, door_rect)
+        moving_object(spike_rect)
+        screen.blit(spike_surface, spike_rect)
+        wall_collision()
+        display_level()
+
+    elif game_state == 6 and game_active:
+        wall_list.clear()
+        create_wall(250, 325, 300, 25)
+        create_wall(250, 450, 325, 25)
+        create_wall(550, 0, 25, 350)
+        create_wall(250, 450, 25, 350)
+        door_rect = door_surface.get_rect(center=(400, 400))
+        key_rect = key_surface.get_rect(center=(400, 100))
+        screen.blit(door_surface, door_rect)
+        player_rect.centerx += player_x_change
+        player_rect.centery += player_y_change
+        player_border()
+        player_collision()
+        screen.blit(player_surface, player_rect)
+        if not key_get:
+            screen.blit(key_surface, key_rect)
+        moving_object(spike_rect)
+        screen.blit(spike_surface, spike_rect)
+        wall_collision()
+        display_level()
+
+    elif game_state == 7 and game_active:
+        wall_list.clear()
+        create_wall(300, 100, 200, 25)
+        create_wall(0, 350, 200, 25)
+        create_wall(0, 450, 200, 25)
+        # right
+        create_wall(600, 350, 200, 25)
+        create_wall(600, 450, 200, 25)
+        key_rect = key_surface.get_rect(center=(50, 413))
+        player_rect.centerx += player_x_change
+        player_rect.centery += player_y_change
+        player_border()
+        player_collision()
+        screen.blit(player_surface, player_rect)
+        if not key_get:
+            screen.blit(key_surface, key_rect)
+        screen.blit(door_surface, door_rect)
+        moving_object(spike_rect)
+        screen.blit(spike_surface, spike_rect)
+        wall_collision()
+        display_level()
+
+    elif game_state == 8 and game_active:
+        wall_list.clear()
+        create_wall(300, 350, 25, 450)
+        create_wall(175, 350, 125, 25)
+        create_wall(475, 350, 25, 450)
+        create_wall(500, 350, 125, 25)
+        key_rect = key_surface.get_rect(center=(550, 600))
+        player_rect.centerx += player_x_change
+        player_rect.centery += player_y_change
+        player_border()
+        player_collision()
+        screen.blit(player_surface, player_rect)
+        if not key_get:
+            screen.blit(key_surface, key_rect)
+        screen.blit(door_surface, door_rect)
+        moving_object(spike_rect)
+        screen.blit(spike_surface, spike_rect)
+        wall_collision()
+        display_level()
+
+    elif game_state == 9 and game_active:
+        wall_list.clear()
+        create_wall(300, 475, 25, 350)
+        create_wall(175, 475, 150, 25)
+        create_wall(500, 0, 25, 350)
+        create_wall(500, 325, 175, 25)
+        door_rect = door_surface.get_rect(center=(625, 275))
+        key_rect = key_surface.get_rect(center=(250, 650))
+        screen.blit(door_surface, door_rect)
+        player_rect.centerx += player_x_change
+        player_rect.centery += player_y_change
+        player_border()
+        player_collision()
+        screen.blit(player_surface, player_rect)
+        if not key_get:
+            screen.blit(key_surface, key_rect)
+        moving_object(spike_rect)
+        screen.blit(spike_surface, spike_rect)
+        wall_collision()
+        display_level()
+
+    elif game_state == 10 and game_active:
+        wall_list.clear()
+        create_wall(250, 250, 250, 25)
+        create_wall(250, 500, 250, 25)
+        create_wall(250, 250, 25, 250)
+        key_rect = key_surface.get_rect(center=(400, 400))
+        door_rect = door_surface.get_rect(center=(375, 200))
+        screen.blit(door_surface, door_rect)
+        player_rect.centerx += player_x_change
+        player_rect.centery += player_y_change
+        player_border()
+        player_collision()
+        screen.blit(player_surface, player_rect)
+        if not key_get:
+            screen.blit(key_surface, key_rect)
+        moving_object(spike_rect)
+        screen.blit(spike_surface, spike_rect)
+        wall_collision()
+        display_level()
+
+
+    elif game_state == 11 and game_active:
+        text_surface = text_font.render('Thank you for checking out my game! you can find the source code here: ',
+                                        False, (0, 0, 0))
+        text_surface2 = text_font.render('If there are any improvements to the code i can make, please let me know! ',
+                                         False, (0, 0, 0))
+        text_rect = text_surface.get_rect(center=(400, 450))
+        screen.blit(text_surface, text_rect)
+        text_rect2 = text_surface.get_rect(center=(400, 550))
+        screen.blit(text_surface2, text_rect2)
+
+    if not game_active:
+        player_rect.center = (400, 600)
+        spike_rect = spike_surface.get_rect(center=(100, 500))
+        key_rect = key_surface.get_rect(center=(400, 400))
+        game_state = 0
+        game_active = True
+        key_get = False
+        door_surface = pygame.image.load('temp_door.png')
+        door_rect = door_surface.get_rect(center=(400, 50))
+
+    if play_song and game_state > 0:
+        pygame.mixer.music.load('song.mp3')
+        pygame.mixer.music.play(-1)
+        play_song = False
+
+    pygame.display.update()
+    clock.tick(120)
