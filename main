@@ -32,6 +32,12 @@ play_song = True
 screen = pygame.display.set_mode((screen_width, screen_height))
 screen.fill((210, 210, 210))
 
+#title and icon
+pygame.display.set_caption("Lock n' Block")
+icon = pygame.image.load('temp_player.png')
+pygame.display.set_icon(icon)
+
+
 # surfaces
 player_surface = pygame.image.load('temp_player.png')
 player_rect = player_surface.get_rect(center=(player_x, player_y))
@@ -55,7 +61,7 @@ def display_level():
     screen.blit(level_surface, level_rect)
 
 
-# checks for player collision
+# checks for payer collision
 def player_collision():
     global door_surface, door_rect, game_state
     global can_open, game_active, key_get, player_x_change, player_y_change
@@ -167,8 +173,8 @@ def player_movement():
             # menu
             if event.key == pygame.K_SPACE and game_state == 0:
                 game_state += 1
-            if event.key == pygame.K_9:
-                game_state = 10
+            if event.key == pygame.K_SPACE and game_state == 11:
+                game_state = 1
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_LEFT:
                 player_x_change += 2
@@ -192,7 +198,7 @@ def menu():
     credit2_rect = credit2.get_rect(center=(600, 750))
     source_surface = text_font.render('Source code: ', False, (0, 0, 0))
     source_rect = source_surface.get_rect(center=(400, 500))
-    source_surface2 = text_font.render('www.shghregehvuirevh', False, (0, 0, 0))
+    source_surface2 = text_font.render('https://github.com/CoconutFace/lock-n-block-game', False, (0, 0, 0))
     source_rect2 = source_surface2.get_rect(center=(400, 575))
     screen.blit(credit, credits_rect)
     screen.blit(credit2, credit2_rect)
@@ -200,6 +206,7 @@ def menu():
     screen.blit(source_surface2, source_rect2)
     screen.blit(button1, button1_rect)
     screen.blit(start_surface, start_rect)
+    
 
 while True:
     screen.fill((210, 210, 210))
@@ -220,8 +227,6 @@ while True:
         screen.blit(spike_surface, spike_rect)
         moving_object(spike_rect)
         screen.blit(spike_surface, spike_rect)
-        # wall_collision()
-        # create_wall(300, 50, 25, 500)
         display_level()
 
     elif game_state == 2 and game_active:
@@ -407,14 +412,28 @@ while True:
 
 
     elif game_state == 11 and game_active:
+        button2 = pygame.image.load('empty_text.png')
+        button2_rect = button2.get_rect(center=(400, 100))
+        win_text = game_font.render('You Won!', False, (255, 255, 255))
+        win_rect = win_text.get_rect(center=(400, 100))
         text_surface = text_font.render('Thank you for checking out my game! you can find the source code here: ',
                                         False, (0, 0, 0))
-        text_surface2 = text_font.render('If there are any improvements to the code i can make, please let me know! ',
+        text_surface2 = text_font.render('https://github.com/CoconutFace/lock-n-block-game',
                                          False, (0, 0, 0))
+        text_surface3 = text_font.render('If there are any improvements to the code i can make, please let me know! ',
+                                         False, (0, 0, 0))
+        text_surface4 = text_font.render('If you want to play again, press the space bar.',
+                                         False, (0, 0, 0))
+        screen.blit(button2, button2_rect)
+        screen.blit(win_text, win_rect)
         text_rect = text_surface.get_rect(center=(400, 450))
         screen.blit(text_surface, text_rect)
-        text_rect2 = text_surface.get_rect(center=(400, 550))
+        text_rect2 = text_surface2.get_rect(center=(400, 500))
         screen.blit(text_surface2, text_rect2)
+        text_rect3 = text_surface3.get_rect(center=(400, 550))
+        screen.blit(text_surface3, text_rect3)
+        text_rect4 = text_surface4.get_rect(center=(400, 600))
+        screen.blit(text_surface4, text_rect4)
 
     if not game_active:
         player_rect.center = (400, 600)
